@@ -124,5 +124,7 @@ https://reinasdatastudio.github.io/webpage/
 
 元薬剤師｜データサイエンティスト
 
+R・医療データ解析・再現可能な解析ワークフローに興味があります。
+
 **Website**
 https://reinasdatastudio.github.io/webpage/
