@@ -4,6 +4,7 @@
 ![R](https://img.shields.io/badge/R-276DC3?logo=r&logoColor=white)
 ![Quarto](https://img.shields.io/badge/Quarto-39729E?logo=quarto&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Random Forest](https://img.shields.io/badge/Random%20Forest-darkgreen)
 ![Reproducible Workflow](https://img.shields.io/badge/Reproducible-Workflow-success)
 
 A reproducible machine learning workflow using **R** to classify cancer-related genetic variants according to their clinical significance through statistical modelling, Random Forest, and model evaluation.
