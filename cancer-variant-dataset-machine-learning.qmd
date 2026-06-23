@@ -1,0 +1,371 @@
+---
+title: "Machine Learning for Cancer Variant Pathogenicity Classification"
+author: "Reina Kaino"
+date: "2025-04-06"
+format:
+  html:
+    theme: cosmo
+    page-layout: article
+    code-fold: true
+    toc: true
+    toc-location: right
+    include-after-body: footer.html
+
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r include=TRUE}
+library(tidyverse)
+library(janitor)
+library(randomForest)
+```
+
+The goal is to predict harmful genetic mutations using R.
+i.e. Predict "Pathogenic" gene mutation with Machine Learning.
+
+Let's narrow this down to more specific questions.
+I will first learn the dataset.
+
+```{r}
+df <- read_csv("data/cancer_variant_prioritization_dataset.csv")
+head(df,10)
+```
+
+### Inspect the data
+
+```{r}
+summary(df)
+```
+
+CADD_score of 40 seems like an extreme outlier, especially since the 3rd quarter is 25.33. I will later check to see how many rows have the same score and determine if it should be removed or not.
+At this stage I don't think this variable is that important to be included anyway, since it is a score, it is likely to have strong relationship with the outcome.
+Otherwise there does not seem to be any other big issues.
+
+A lot of these variables should be changed to factors.
+
+### Clean variable names
+
+```{r}
+# Change the variable names to make it all lower case (consistent across variables)
+df <- df %>% clean_names()
+```
+
+### Check for missing values
+
+```{r}
+colSums(is.na(df))
+```
+
+No missing values found.
+
+### Combine inconsistent labels
+
+```{r}
+#Combine the two values to "Pathogenic", otherwise everything else is kept as is
+df <- df %>% mutate(clinical_significance = case_when(
+                    clinical_significance %in% c("Pathogenic", "Likely_pathogenic") ~ "Pathogenic",
+                    TRUE ~ clinical_significance
+))
+```
+
+VUS means "Variants of Uncertain Significance".
+The `likely pathogenic` and `pathogenic`categories were combined to reduce label ambiguity. This resulted in a moderately imbalanced dataset, which was accounted for during analysis by focusing on proportional comparisons rather than absolute counts.
+
+### Change variable type
+
+```{r}
+#Change to factors
+df <- df %>% mutate(chromosome = as.factor(chromosome),
+             gene = as.factor(gene),
+             variant_type = as.factor(variant_type),
+             sift = as.factor(sift),
+             poly_phen = as.factor(poly_phen),
+             clinical_significance = as.factor(clinical_significance))
+```
+
+### Remove Duplicates
+
+```{r}
+df <- df %>% distinct()
+head(df,10)
+```
+
+Just also make sure you are using the correct table type (In this case, I want to use tibble so this is fine)
+
+```{r}
+summary(df)
+```
+
+One thing I noticed is the significantly high `population_af` max of 0.49.
+We will also need to check to see if it is an outlier or not.
+Variants with high allele frequency (~0.5) means it is common in the population and are therefore less likely to be pathogenic. If it is associated with "benign" outcome, it can be concluded as normal.
+
+```{r}
+df %>% arrange(desc(population_af))
+```
+
+## Data Visualisation
+
+Now we will evaluate the data visually.
+The possible outliers of my concern are in: `cadd_score` and `population_af` so we will look at those first.
+
+### CADD score vs Clinical Significance
+
+```{r}
+ggplot(df, aes(x = cadd_score)) +
+    geom_bar()
+```
+
+Ignoring the two end values, the cadd score follows a normal distribution.
+
+```{r}
+df %>%
+  ggplot(aes(x = clinical_significance, y = cadd_score)) +
+  geom_boxplot()
+```
+
+### Population_af vs Clinical Significance
+
+```{r}
+df %>%
+  ggplot(aes(x = clinical_significance, y = population_af)) +
+  geom_boxplot()
+```
+
+```{r}
+df %>%
+  ggplot(aes(x = population_af, fill = clinical_significance)) +
+  geom_density(alpha = 0.5)
+```
+
+My assumption was that benign proteins would be more common therefore have higher `population_af`. 
+Both boxplot and the density plot show that `population_af` is equally distributed across the three `clinical_significance` groups.
+
+Although allele frequency is generally expected to be lower in pathogenic variants, the distributions show substantial overlap across categories, indicating that allele frequency alone is not sufficient for classification.
+Single-feature analysis showed overlapping distributions, motivating the use of multivariate models.
+
+### Variant Type vs Clinical Significance
+
+```{r}
+df %>%
+  ggplot(aes(x = variant_type, fill = clinical_significance)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proportion")
+```
+
+### SIFT vs Clinical Significance
+
+```{r}
+df %>%
+  ggplot(aes(x = as.factor(sift), fill = clinical_significance)) +
+  geom_bar(position = "fill") +
+  labs(x = "SIFT", y = "Proportion")
+```
+
+```{r}
+names(df)
+```
+
+### PolyPhen vs Clinical Significance
+
+```{r}
+df %>%
+  ggplot(aes(x = as.factor(poly_phen), fill = clinical_significance)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+top_genes <- df %>%
+  count(gene, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  pull(gene)
+
+df %>%
+  filter(gene %in% top_genes) %>%
+  ggplot(aes(x = gene, fill = clinical_significance)) +
+  geom_bar(position = "fill") +
+  coord_flip()
+```
+
+### Log of population_af vs Clinical Significance
+To reduce skewness
+
+```{r}
+df %>%
+  ggplot(aes(x = clinical_significance, y = log10(population_af + 1e-6))) +
+  geom_boxplot()
+```
+
+The distributions all these graphs show substantial overlap across clinical significance categories, suggesting that no single feature is sufficient to distinguish pathogenic variants.
+
+## Data Analysis
+
+`VUS` will be removed as it is an undetermined outcome.
+
+```{r}
+model <- df %>%
+  filter(clinical_significance != "VUS") %>%
+  mutate(
+    clinical_significance = droplevels(as.factor(clinical_significance))
+  )
+
+df_model <- glm(
+  clinical_significance ~ 
+    cadd_score + 
+    sift + 
+    poly_phen + 
+    population_af + 
+    variant_type,
+  data = model,
+  family = "binomial"
+)
+```
+
+```{r}
+summary(df_model)
+```
+
+Logistic regression analysis showed that none of the selected features were statistically significant predictors of clinical significance. The minimal reduction in deviance suggests that these variables, when used individually or jointly, have limited predictive power in this dataset.
+
+These findings indicate that more complex models or additional features may be required to accurately classify variant pathogenicity.
+
+### Random Forest
+Random Forest can handle interactions and non-linear relationships. It can also work well with mixed data types.
+
+```{r}
+set.seed(123)
+
+train_index <- sample(1:nrow(model), 0.7 * nrow(model))
+
+train_data <- model[train_index, ]
+test_data  <- model[-train_index, ]
+```
+
+```{r}
+rf_model <- randomForest(
+  clinical_significance ~ 
+    cadd_score + 
+    sift + 
+    poly_phen + 
+    population_af + 
+    variant_type,
+  data = train_data,
+  ntree = 100
+)
+
+rf_model
+```
+
+```{r}
+importance(rf_model)
+```
+
+#### Evaluating on test data
+
+```{r}
+rf_pred <- predict(rf_model, test_data)
+
+table(rf_pred, test_data$clinical_significance)
+```
+
+```{r}
+mean(rf_pred == test_data$clinical_significance)
+```
+
+### Evaluate on glm
+
+```{r}
+#Probability the observation is Pathogenic
+glm_prob <- predict(df_model, test_data, type = "response")
+
+#If probability > 0.5 --> Assign as Pathogenic
+glm_pred <- ifelse(glm_prob > 0.5, "Pathogenic", "Benign")
+#Change to factor (as it is currently character)
+glm_pred <- factor(glm_pred, levels = levels(test_data$clinical_significance))
+#This is the same as glm_pred <- as.factor(glm_pred) but if there is only one value
+#(e.g. Only `Pathogenic`) it will only have that value as the factor.
+#Error: test_data may have both `benign` and `Pathogenic`
+
+# GLM accuracy
+mean(glm_pred == test_data$clinical_significance)
+```
+
+```{r}
+table(glm_pred, test_data$clinical_significance)
+table(rf_pred, test_data$clinical_significance)
+```
+
+GLM predicts only `Pathogenic` andignores `Benign` completely.
+RF predicts both classes and captures some structure.
+
+-->
+
+Although logistic regression achieved slightly higher overall accuracy, it failed to correctly classify any benign variants, predicting all observations as pathogenic. In contrast, the Random Forest model demonstrated improved class balance by correctly identifying both benign and pathogenic variants.
+This highlights the limitation of accuracy as a sole evaluation metric and the importance of examining class-wise performance.
+Overall, RF is slightly better at predicting, but further evaluation is required.
+
+I could tune RF model, or add other variables such as genes.
+
+## Improving the model
+
+```{r}
+rf_model <- randomForest(
+  clinical_significance ~ .,
+  data = train_data,
+  ntree = 100,
+  classwt = c(Benign = 2, Pathogenic = 1),
+  mtry = 2
+)
+
+rf_model
+```
+
+I believed that gene should also be included as it is one of the most important factor to determine cancerous cells.
+I fine-tuned the Random Forest model:
+- Changing the classwt showed a lot more balanced class.error but higher error rate.
+- Other tuning did not change the outcome
+
+Then I added all the variables.
+- Error rate again became the same as the initial model (~66% accuracy) but very biased error with predicting ~98% of Pathogenic correctly.
+
+## Summary
+
+### Summary of Analysis
+This project explored the classification of genetic variants into clinical significance categories using a combination of exploratory data analysis and machine learning models in R.
+
+Initial exploratory analysis showed that individual features — including variant type, population allele frequency, SIFT, and PolyPhen — exhibited substantial overlap across classes. This indicated that no single variable alone was sufficient to distinguish between benign and pathogenic variants.
+
+### Model Comparison
+**Logistic Regression (GLM):**
+- The logistic regression model failed to distinguish between classes effectively.
+- It predicted nearly all observations as pathogenic, reflecting bias toward the majority class.
+- This resulted in misleadingly high accuracy but poor practical performance.
+
+**Random Forest:**
+- The Random Forest model improved predictive performance by capturing non-linear relationships and interactions between variables.
+- However, the model initially showed strong bias toward the majority class (pathogenic), with very high error rates for benign variants.
+
+### Impact of class imbalance
+To address class imbalance, class weighting was introduced in the Random Forest model. This improved balance between class-specific error rates.
+However, overall accuracy decreased, highlighting a trade-off between:
+- fairness across classes
+- overall predictive accuracy
+
+This demonstrates that accuracy alone is not a sufficient evaluation metric, particularly in imbalanced datasets.
+
+### Key findings
+- No single feature provides strong predictive power for clinical significance.
+- Class imbalance strongly influences model behavior and must be addressed explicitly.
+- Model evaluation should consider class-specific performance, not just overall accuracy.
+- Gene-level information is highly informative but may introduce risks of overfitting - the model may learn gene-specific patterns rather than generalisable mutation characteristics
+
+Overall, this analysis demonstrates that predicting variant pathogenicity is a complex problem requiring a multivariate approach. While Random Forest models offer improved performance over linear models, careful consideration must be given to class imbalance and feature selection.
+
+Future work could explore:
+- more advanced models (e.g., gradient boosting)
+- feature engineering (e.g., grouping genes or incorporating biological pathways)
+- improved evaluation metrics (e.g., precision, recall, F1 score)
+
