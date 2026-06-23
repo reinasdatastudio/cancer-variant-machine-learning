@@ -77,10 +77,11 @@ https://reinasdatastudio.github.io/webpage/
 
 本プロジェクトは、**Kaggle Notebook**として作成した内容を、ポートフォリオの一部としてGitHubへ移行したものです。
 
-**Kaggle Notebook**
+### Kaggle Notebook
 https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r
 
-**Quarto html バージョン**
+### Quarto html バージョン
+https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-variant-dataset-machine-learning.html
 
 ## 主な内容
 
