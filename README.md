@@ -1,17 +1,18 @@
+# Machine Learning for Cancer Variant Pathogenicity Classification
+
 [![Kaggle](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r)
 ![R](https://img.shields.io/badge/R-276DC3?logo=r&logoColor=white)
 ![Quarto](https://img.shields.io/badge/Quarto-39729E?logo=quarto&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
-
-# Machine Learning for Cancer Variant Pathogenicity Classification
+![Reproducible Workflow](https://img.shields.io/badge/Reproducible-Workflow-success)
 
 A reproducible machine learning workflow using **R** to classify cancer-related genetic variants according to their clinical significance through statistical modelling, Random Forest, and model evaluation.
 
 ### **Kaggle Notebook**
-https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r
+[Cancer Variant Dataset - Machine Learning using R](https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r)
 
 ### Quarto html version
-https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-variant-dataset-machine-learning.html
+[Machine Learning for Cancer Variant Pathogenicity Classification](https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-variant-dataset-machine-learning.html)
 
 ## Overview
 
@@ -44,6 +45,7 @@ This project was originally developed as a **Kaggle Notebook** and has been migr
 - cancer-variant-machine-learning.qmd
 - README.md
 - data/
+  - cancer_variant_prioritization_dataset.csv
 
 ## Results
 
@@ -78,10 +80,10 @@ https://reinasdatastudio.github.io/webpage/
 本プロジェクトは、**Kaggle Notebook**として作成した内容を、ポートフォリオの一部としてGitHubへ移行したものです。
 
 ### Kaggle Notebook
-https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r
+[Cancer Variant Dataset - Machine Learning using R](https://www.kaggle.com/code/reinagraham/cancer-variant-dataset-machine-learning-using-r)
 
 ### Quarto html バージョン
-https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-variant-dataset-machine-learning.html
+[Machine Learning for Cancer Variant Pathogenicity Classification](https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-variant-dataset-machine-learning.html)
 
 ## 主な内容
 
@@ -106,6 +108,7 @@ https://reinasdatastudio.github.io/cancer-variant-machine-learning/cancer-varian
 - cancer-variant-machine-learning.qmd
 - README.md
 - data/
+  - cancer_variant_prioritization_dataset.csv
 
 ## 解析結果
 
